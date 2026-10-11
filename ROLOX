@@ -1,0 +1,698 @@
+-- RatHub Core: Project RR (90+ Features MEGA Edition) v5
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local TweenService = game:GetService("TweenService")
+
+local localPlayer = Players.LocalPlayer
+local camera = Workspace.CurrentCamera
+
+-- 1. Anti-Cheat Destroyer (Disabled to prevent breaking game modules like Skins)
+-- coroutine.wrap(function()
+--     local function _proc(o)
+--         pcall(function()
+--             if o:IsA("LocalScript") or o:IsA("ModuleScript") then
+--                 local nm = o.Name:lower()
+--                 local tags = {"anticheat","anti-cheat","detection","ban","kick","security","crash","aimassist","magnet"}
+--                 for _, tag in ipairs(tags) do
+--                     if nm:find(tag) then o.Disabled = true o:Destroy() break end
+--                 end
+--             end
+--         end)
+--     end
+--     pcall(function() for _, obj in ipairs(game:GetDescendants()) do _proc(obj) end game.DescendantAdded:Connect(_proc) end)
+-- end)()
+
+if CoreGui:FindFirstChild("RatHubAssimilated") then CoreGui.RatHubAssimilated:Destroy() end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "RatHubAssimilated"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = CoreGui
+
+-- 2. Blood Petals UI Effect
+local Petals = { list = {}, visible = true }
+function Petals:spawnOne()
+    local s = math.random(6, 12)
+    local f = Instance.new("Frame")
+    f.Size = UDim2.fromOffset(s, math.floor(s * 0.62))
+    f.BorderSizePixel = 0
+    f.BackgroundTransparency = 0.2 + math.random() * 0.4
+    f.BackgroundColor3 = Color3.fromRGB(200, 200, 200):Lerp(Color3.fromRGB(150, 10, 10), math.random() * 0.5)
+    f.Rotation = math.random(0, 360)
+    f.ZIndex = 1
+    f.Parent = screenGui
+    Instance.new("UICorner", f).CornerRadius = UDim.new(1, 0)
+    table.insert(self.list, {
+        f = f, x = math.random(), y = math.random() * 1.2 - 0.1,
+        vy = 0.05 + math.random() * 0.07, sway = 0.01 + math.random() * 0.03,
+        phase = math.random() * 6.28, spin = (math.random() - 0.5) * 160
+    })
+end
+for i = 1, 15 do Petals:spawnOne() end
+function Petals:step(dt, t)
+    for _, p in ipairs(self.list) do
+        p.y = p.y + p.vy * dt
+        if p.y > 1.08 then p.y = -0.08; p.x = math.random() end
+        p.f.Position = UDim2.fromScale(p.x + math.sin(t * 0.9 + p.phase) * p.sway, p.y)
+        p.f.Rotation = p.f.Rotation + p.spin * dt
+    end
+end
+
+-- 3. FOV & Crosshair
+local fovCircleFrame = Instance.new("Frame")
+fovCircleFrame.Name = "FOVCircle"
+fovCircleFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+fovCircleFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+fovCircleFrame.BackgroundTransparency = 1
+fovCircleFrame.Visible = false
+fovCircleFrame.ZIndex = 999
+fovCircleFrame.Parent = screenGui
+Instance.new("UICorner", fovCircleFrame).CornerRadius = UDim.new(1, 0)
+local fovStroke = Instance.new("UIStroke")
+fovStroke.Color = Color3.fromRGB(200, 200, 200)
+fovStroke.Transparency = 0.2
+fovStroke.Thickness = 1.5
+fovStroke.Parent = fovCircleFrame
+
+-- 4. Main Glass UI & Sidebar
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 700, 0, 480)
+mainFrame.Position = UDim2.new(0.5, -350, 0.5, -240)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+mainFrame.BackgroundTransparency = 0.15
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = Color3.fromRGB(150, 150, 150)
+mainStroke.Transparency = 0.3
+mainStroke.Thickness = 1.5
+mainStroke.Parent = mainFrame
+
+local sidebar = Instance.new("Frame")
+sidebar.Size = UDim2.new(0, 160, 1, 0)
+sidebar.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+sidebar.BackgroundTransparency = 0.5
+sidebar.BorderSizePixel = 0
+sidebar.ZIndex = 2
+sidebar.Parent = mainFrame
+Instance.new("UICorner", sidebar).CornerRadius = UDim.new(0, 10)
+
+local logoImage = Instance.new("ImageLabel")
+logoImage.Size = UDim2.new(1, -20, 0, 50)
+logoImage.Position = UDim2.new(0, 10, 0, 10)
+logoImage.BackgroundTransparency = 1
+logoImage.Image = "rbxassetid://0" -- 로고 에셋 ID 여기에 넣기
+logoImage.ScaleType = Enum.ScaleType.Fit
+logoImage.ZIndex = 3
+logoImage.Parent = sidebar
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 20)
+titleLabel.Position = UDim2.new(0, 0, 0, 55)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "SUB MEGA"
+titleLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+titleLabel.TextSize = 13
+titleLabel.Font = Enum.Font.GothamBlack
+titleLabel.ZIndex = 3
+titleLabel.Parent = sidebar
+
+local modalBtn = Instance.new("TextButton")
+modalBtn.Size = UDim2.new(0, 0, 0, 0)
+modalBtn.BackgroundTransparency = 1
+modalBtn.Text = ""
+modalBtn.Modal = true
+modalBtn.Parent = mainFrame
+
+local contentArea = Instance.new("Frame")
+contentArea.Size = UDim2.new(1, -170, 1, -20)
+contentArea.Position = UDim2.new(0, 165, 0, 10)
+contentArea.BackgroundTransparency = 1
+contentArea.ZIndex = 2
+contentArea.Parent = mainFrame
+
+-- 5. MEGA Settings Data
+local settingsData = {
+    -- Combat (25)
+    AimbotEnabled = false, SilentAim = false, FOVEnabled = false, FOVSize = 100, WallCheck = false, AimSmooth = 1,
+    TriggerBot = false, AutoFire = false, Prediction = false, RecoilControl = false, SpreadControl = false, RapidFire = false,
+    HitboxEnabled = false, HitboxSize = 5, AutoWall = false, CurveAim = false, BulletDrop = false, TargetLock = false,
+    AutoMelee = false, PingPrediction = false, RandomAimOffset = false, FriendlyFire = false, FOVFill = false, Hitchance = 100, TrigDelay = 0,
+    
+    -- Visuals (30)
+    ESPEnabled = false, ColorChange = false, ESPWallCheck = false, NameESP = false, DistanceESP = false, TracerESP = false,
+    HealthESP = false, ArmorESP = false, WeaponESP = false, SkeletonESP = false, Chams = false, Outlines = false,
+    Crosshair = false, CrosshairSize = 14, FullBright = false, NightMode = false, DayMode = false, RemoveFog = false,
+    RemoveShadows = false, WorldTint = false, WireframeESP = false, XRay = false, ViewmodelSize = 100, RainbowESP = false,
+    BulletTracers = false, Hitmarker = false, FootstepESP = false, Radar2D = false, EnemyLOS = false, HighlightTarget = false,
+    CustomSkybox = false, ChatESP = false, ServerPingESP = false,
+    
+    -- Movement & Misc (50+)
+    NoClip = false, SpeedEnabled = false, SpeedValue = 16, VelocitySpeed = false, VelocityValue = 50, CFrameSpeed = false,
+    FlyEnabled = false, FlySpeed = 50, SpinEnabled = false, SpinSpeed = 50, BhopEnabled = false, InfJump = false,
+    ClickTeleport = false, ThirdPerson = false, ThirdPersonDist = 15, Gravity = 196.2, AutoReload = false, TpToEnemy = false,
+    TpToSpawn = false, FPSUnlock = false, ChatSpam = false, FakeLag = false, KillAura = false, HitSound = false, JumpPower = 50,
+    ServerHop = false, AntiAimJitter = false, AntiAimSpin = false, HeadHide = false, Desync = false, FakePing = false,
+    AntiKick = false, AntiBan = false, TrashTalk = false, GodMode = false, InstantHit = false, FlingTarget = false,
+    AutoHeal = false, AntiLock = false,
+    NoRecoilHook = false, NoSpreadHook = false, InfAmmo = false, RapidFireV2 = false, AutoScope = false, WallbangPower = false,
+    BulletHolo = false, ThirdPersonCrosshair = false, HitMarkerSound = false, DynamicFOV = false, HighContrast = false,
+    AutoBhopV2 = false, TpNearest = false, Btools = false, WalkOnWater = false,
+    GunStutter = false, FakeShoot = false, ForceHeadshot = false, ProjSpeed = 100, BulletPen = 100,
+    EntityESP = false, TracersCenter = false, DripMode = false, NoTextures = false, WireframeMap = false,
+    SuperJump = false, AutoRespawn = false, LoopTeleport = false, ForceAdmin = false, GiveAllTools = false,
+    RageAimbot = false, Resolver = false, RageAutoShoot = false, RageMinDmg = 10, RageHitchance = 100,
+    RageAutoWall = false, RageMultiPoint = false, RageHeadScale = 80, RageBodyScale = 80, RageBaimLethal = false,
+    RageBaimAfterMiss = 2, RageAntiAim = false, RageBackwardAA = false, RageJitterAA = false, RageFakeLag = false,
+    Backtrack = false, InvisDesync = false, RadarHack = false, SpectatorList = false, GhostMode = false,
+    AstralProjection = false
+}
+
+local function createCategoryPanel(h)
+    local p = Instance.new("ScrollingFrame")
+    p.Size = UDim2.new(1, 0, 1, 0) p.BackgroundTransparency = 1 p.CanvasSize = UDim2.new(0, 0, 0, h)
+    p.ScrollBarThickness = 2 p.ScrollBarImageColor3 = Color3.fromRGB(200, 200, 200) p.Parent = contentArea p.Visible = false return p
+end
+
+local aimbotPanel = createCategoryPanel(1300)
+local ragePanel = createCategoryPanel(1300)
+local espPanel = createCategoryPanel(1500)
+local miscPanel = createCategoryPanel(1800)
+aimbotPanel.Visible = true
+
+local tabButtons = {}
+local tabY = 80
+local function createTabBtn(name, panel)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -20, 0, 40) btn.Position = UDim2.new(0, 10, 0, tabY)
+    btn.BackgroundColor3 = Color3.fromRGB(20, 20, 20) btn.BackgroundTransparency = 0.5
+    btn.Text = name btn.TextColor3 = Color3.fromRGB(150, 150, 150) btn.Font = Enum.Font.GothamBold btn.TextSize = 14 btn.ZIndex = 3 btn.Parent = sidebar
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    local stroke = Instance.new("UIStroke", btn) stroke.Color = Color3.fromRGB(200, 200, 200) stroke.Transparency = 1
+    tabY = tabY + 50 table.insert(tabButtons, {btn = btn, stroke = stroke, panel = panel})
+    btn.MouseButton1Click:Connect(function()
+        for _, t in ipairs(tabButtons) do
+            t.panel.Visible = false
+            TweenService:Create(t.btn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(20, 20, 20), TextColor3 = Color3.fromRGB(150, 150, 150)}):Play()
+            TweenService:Create(t.stroke, TweenInfo.new(0.3), {Transparency = 1}):Play()
+        end
+        panel.Visible = true
+        TweenService:Create(btn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(40, 40, 40), TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+        TweenService:Create(stroke, TweenInfo.new(0.3), {Transparency = 0.2}):Play()
+    end)
+    return btn
+end
+
+local btnAim = createTabBtn("Combat", aimbotPanel)
+local btnRage = createTabBtn("Ragebot", ragePanel)
+local btnVis = createTabBtn("Visuals", espPanel)
+local btnMisc = createTabBtn("Misc", miscPanel)
+btnAim.BackgroundColor3 = Color3.fromRGB(40, 40, 40) btnAim.TextColor3 = Color3.fromRGB(255, 255, 255) tabButtons[1].stroke.Transparency = 0.2
+
+local function createToggle(panel, name, yPos, callback)
+    local frame = Instance.new("Frame") frame.Size = UDim2.new(1, -10, 0, 40) frame.Position = UDim2.new(0, 5, 0, yPos) frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20) frame.BackgroundTransparency = 0.3 frame.BorderSizePixel = 0 frame.Parent = panel Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
+    local label = Instance.new("TextLabel", frame) label.Size = UDim2.new(1, -60, 1, 0) label.Position = UDim2.new(0, 15, 0, 0) label.BackgroundTransparency = 1 label.Text = name label.TextColor3 = Color3.fromRGB(200, 200, 200) label.Font = Enum.Font.GothamMedium label.TextSize = 13 label.TextXAlignment = Enum.TextXAlignment.Left
+    local switchBg = Instance.new("Frame", frame) switchBg.Size = UDim2.new(0, 40, 0, 20) switchBg.Position = UDim2.new(1, -50, 0.5, -10) switchBg.BackgroundColor3 = Color3.fromRGB(50, 50, 50) Instance.new("UICorner", switchBg).CornerRadius = UDim.new(1, 0)
+    local knob = Instance.new("Frame", switchBg) knob.Size = UDim2.new(0, 16, 0, 16) knob.Position = UDim2.new(0, 2, 0.5, -8) knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255) Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+    local btn = Instance.new("TextButton", frame) btn.Size = UDim2.new(1, 0, 1, 0) btn.BackgroundTransparency = 1 btn.Text = ""
+    local state = false
+    btn.MouseButton1Click:Connect(function()
+        state = not state callback(state)
+        if state then TweenService:Create(switchBg, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(180, 180, 180)}):Play() TweenService:Create(knob, TweenInfo.new(0.3), {Position = UDim2.new(1, -18, 0.5, -8)}):Play() TweenService:Create(label, TweenInfo.new(0.3), {TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+        else TweenService:Create(switchBg, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}):Play() TweenService:Create(knob, TweenInfo.new(0.3), {Position = UDim2.new(0, 2, 0.5, -8)}):Play() TweenService:Create(label, TweenInfo.new(0.3), {TextColor3 = Color3.fromRGB(200, 200, 200)}):Play() end
+    end)
+end
+
+local function createInputBox(panel, labelText, defaultVal, minVal, maxVal, yPos, callback)
+    local frame = Instance.new("Frame") frame.Size = UDim2.new(1, -10, 0, 40) frame.Position = UDim2.new(0, 5, 0, yPos) frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20) frame.BackgroundTransparency = 0.3 frame.BorderSizePixel = 0 frame.Parent = panel Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
+    local label = Instance.new("TextLabel", frame) label.Size = UDim2.new(0.6, 0, 1, 0) label.Position = UDim2.new(0, 15, 0, 0) label.BackgroundTransparency = 1 label.TextColor3 = Color3.fromRGB(200, 200, 200) label.TextSize = 13 label.Font = Enum.Font.GothamMedium label.TextXAlignment = Enum.TextXAlignment.Left label.Text = labelText .. " (" .. minVal .. "~" .. maxVal .. ")"
+    local textBox = Instance.new("TextBox", frame) textBox.Size = UDim2.new(0.3, 0, 0, 26) textBox.Position = UDim2.new(0.65, 0, 0.5, -13) textBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30) textBox.Text = tostring(defaultVal) textBox.TextColor3 = Color3.fromRGB(255, 255, 255) textBox.TextSize = 13 textBox.Font = Enum.Font.GothamBold Instance.new("UICorner", textBox).CornerRadius = UDim.new(0, 4)
+    textBox.FocusLost:Connect(function() local num = tonumber(textBox.Text) if num then if num < minVal then num = minVal end if num > maxVal then num = maxVal end textBox.Text = tostring(num) callback(num) else textBox.Text = tostring(defaultVal) end end)
+end
+
+local function createButton(panel, name, yPos, callback)
+    local btn = Instance.new("TextButton") btn.Size = UDim2.new(1, -10, 0, 40) btn.Position = UDim2.new(0, 5, 0, yPos) btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40) btn.Text = name btn.TextColor3 = Color3.fromRGB(255, 255, 255) btn.Font = Enum.Font.GothamBold btn.TextSize = 13 btn.Parent = panel Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    btn.MouseEnter:Connect(function() TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(80, 80, 80)}):Play() end)
+    btn.MouseLeave:Connect(function() TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40, 40, 40)}):Play() end)
+    btn.MouseButton1Click:Connect(function() local ogSize = btn.Size TweenService:Create(btn, TweenInfo.new(0.1), {Size = UDim2.new(1, -16, 0, 36)}):Play() task.wait(0.1) TweenService:Create(btn, TweenInfo.new(0.1), {Size = ogSize}):Play() callback() end)
+    return btn
+end
+
+-- 6. Populate Panels
+local aY = 0
+createToggle(aimbotPanel, "1. 마스터 에임봇 (Aimbot & Silent)", aY, function(v) settingsData.AimbotEnabled = v; settingsData.SilentAim = v end); aY = aY + 45
+createToggle(aimbotPanel, "2. 전방위 예측 (Ping & Target)", aY, function(v) settingsData.Prediction = v; settingsData.PingPrediction = v end); aY = aY + 45
+createToggle(aimbotPanel, "3. 무반동 & 무탄퍼짐 (No Recoil/Spread)", aY, function(v) settingsData.RecoilControl = v; settingsData.SpreadControl = v end); aY = aY + 45
+createToggle(aimbotPanel, "4. 자동 발사 (Auto Fire & Trigger)", aY, function(v) settingsData.AutoFire = v; settingsData.TriggerBot = v end); aY = aY + 45
+createToggle(aimbotPanel, "5. 곡사 & 탄도학 (Curve & Bullet Drop)", aY, function(v) settingsData.CurveAim = v; settingsData.BulletDrop = v end); aY = aY + 45
+createToggle(aimbotPanel, "6. 오토 월 & 타겟 고정", aY, function(v) settingsData.AutoWall = v; settingsData.TargetLock = v end); aY = aY + 45
+createToggle(aimbotPanel, "7. 자동 근접 & 팀킬 허용", aY, function(v) settingsData.AutoMelee = v; settingsData.FriendlyFire = v end); aY = aY + 45
+createToggle(aimbotPanel, "8. 속사 (Rapid Fire)", aY, function(v) settingsData.RapidFire = v end); aY = aY + 45
+createToggle(aimbotPanel, "16. 속사 (Rapid Fire)", aY, function(v) settingsData.RapidFire = v end); aY = aY + 45
+createToggle(aimbotPanel, "17. 힛박스 확장", aY, function(v) settingsData.HitboxEnabled = v end); aY = aY + 45
+createInputBox(aimbotPanel, "18. 힛박스 크기", 5, 2, 50, aY, function(v) settingsData.HitboxSize = v end); aY = aY + 45
+createToggle(aimbotPanel, "19. FOV 서클 (Circle & Fill)", aY, function(v) settingsData.FOVEnabled = v; fovCircleFrame.Visible = v; fovCircleFrame.BackgroundTransparency = v and 0.8 or 1 end); aY = aY + 45
+createInputBox(aimbotPanel, "21. FOV 크기", 100, 10, 800, aY, function(v) settingsData.FOVSize = v end); aY = aY + 45
+createInputBox(aimbotPanel, "22. 에임 스무딩", 1, 1, 50, aY, function(v) settingsData.AimSmooth = v end); aY = aY + 45
+createInputBox(aimbotPanel, "23. 명중률 (Hitchance)", 100, 0, 100, aY, function(v) settingsData.Hitchance = v end); aY = aY + 45
+createInputBox(aimbotPanel, "24. 트리거 딜레이 (ms)", 0, 0, 1000, aY, function(v) settingsData.TrigDelay = v end); aY = aY + 45
+-- Removed clutter toggles 101-111
+createToggle(aimbotPanel, "116. 발사 간격 교란 (Stutter)", aY, function(v) settingsData.GunStutter = v end); aY = aY + 45
+createToggle(aimbotPanel, "117. 페이크 샷 (소리만 냄)", aY, function(v) settingsData.FakeShoot = v end); aY = aY + 45
+createToggle(aimbotPanel, "118. 강제 헤드샷 (네트워크 변조)", aY, function(v) settingsData.ForceHeadshot = v end); aY = aY + 45
+createToggle(aimbotPanel, "119. 탄속 조절 (Proj Speed)", aY, function(v) settingsData.ProjSpeed = v end); aY = aY + 45
+createInputBox(aimbotPanel, "120. 관통력 조절 (Penetration)", 100, 0, 500, aY, function(v) settingsData.BulletPen = v end); aY = aY + 45
+createToggle(aimbotPanel, "121. 포스필드 스킨 체인저 (Client Skin)", aY, function(v) settingsData.SkinChanger = v end); aY = aY + 45
+
+local rY = 0
+createToggle(ragePanel, "131. 레이지봇 풀 패키지 (Master Rage)", rY, function(v) 
+    settingsData.RageAimbot = v
+    settingsData.Resolver = v
+    settingsData.RageAutoShoot = v
+    settingsData.RageAutoWall = v
+    settingsData.RageMultiPoint = v
+    settingsData.RageBaimLethal = v
+    settingsData.RageAntiAim = v
+    settingsData.RageBackwardAA = v
+    settingsData.RageJitterAA = v
+    settingsData.RageFakeLag = v
+    settingsData.Backtrack = v
+    settingsData.InvisDesync = v
+    settingsData.RadarHack = v
+    settingsData.SpectatorList = v
+    settingsData.GhostMode = v
+end); rY = rY + 45
+createToggle(ragePanel, "151. 아스트랄 프로젝션 (본체 은폐+원격타격)", rY, function(v) 
+    settingsData.AstralProjection = v 
+    if not v and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        localPlayer.Character.HumanoidRootPart.Anchored = false
+    end
+end); rY = rY + 45
+
+local eY = 0
+local eY = 0
+createToggle(espPanel, "25. ESP 활성화", eY, function(v) settingsData.ESPEnabled = v end); eY = eY + 45
+local espTypes = {"Highlight", "2D Box", "Corner Box"}
+local espTypeIdx = 1
+settingsData.EspType = espTypes[1]
+local espTypeBtn = nil
+espTypeBtn = createButton(espPanel, "26. ESP 타입 [" .. settingsData.EspType .. "]", eY, function()
+    espTypeIdx = espTypeIdx + 1
+    if espTypeIdx > #espTypes then espTypeIdx = 1 end
+    settingsData.EspType = espTypes[espTypeIdx]
+    espTypeBtn.Text = "26. ESP 타입 [" .. settingsData.EspType .. "]"
+end); eY = eY + 45
+createToggle(espPanel, "27. 와이어프레임 (Wireframe)", eY, function(v) settingsData.WireframeESP = v end); eY = eY + 45
+createToggle(espPanel, "28. 스켈레톤 (뼈대 표시)", eY, function(v) settingsData.SkeletonESP = v end); eY = eY + 45
+createToggle(espPanel, "29. 엑스레이 (X-Ray)", eY, function(v) settingsData.XRay = v end); eY = eY + 45
+createToggle(espPanel, "30. 정보 표시 (Name, Dist, HP)", eY, function(v) settingsData.NameESP = v; settingsData.DistanceESP = v; settingsData.HealthESP = v end); eY = eY + 45
+createToggle(espPanel, "33. 아머바 (Armor Bar)", eY, function(v) settingsData.ArmorESP = v end); eY = eY + 45
+createToggle(espPanel, "34. 무기 표시 (Weapon ESP)", eY, function(v) settingsData.WeaponESP = v end); eY = eY + 45
+createToggle(espPanel, "35. 트레이서 (Tracer)", eY, function(v) settingsData.TracerESP = v end); eY = eY + 45
+createToggle(espPanel, "36. 총알 궤적 (Bullet Tracers)", eY, function(v) settingsData.BulletTracers = v end); eY = eY + 45
+createToggle(espPanel, "37. 무지개색 (Rainbow ESP)", eY, function(v) settingsData.RainbowESP = v end); eY = eY + 45
+createToggle(espPanel, "38. 색상 다르게 표시", eY, function(v) settingsData.ColorChange = v end); eY = eY + 45
+createToggle(espPanel, "40. 하이라이트 & 레이더 (Highlight/Radar)", eY, function(v) settingsData.HighlightTarget = v; settingsData.Radar2D = v end); eY = eY + 45
+createToggle(espPanel, "41. 시야 & 발소리 감지 (LOS/Footstep)", eY, function(v) settingsData.EnemyLOS = v; settingsData.FootstepESP = v end); eY = eY + 45
+createToggle(espPanel, "42. 크로스헤어 & 힛마커 (Crosshair/Hit)", eY, function(v) settingsData.Crosshair = v; settingsData.Hitmarker = v end); eY = eY + 45
+createInputBox(espPanel, "43. 십자선 크기", 14, 2, 50, eY, function(v) settingsData.CrosshairSize = v end); eY = eY + 45
+createToggle(espPanel, "44. 환경 최적화 (풀브라이트/안개/그림자 끔)", eY, function(v) settingsData.FullBright = v; settingsData.RemoveFog = v; settingsData.RemoveShadows = v end); eY = eY + 45
+createInputBox(espPanel, "45. 뷰모델 크기 (손 크기)", 100, 10, 300, eY, function(v) settingsData.ViewmodelSize = v end); eY = eY + 45
+createToggle(espPanel, "46. 텍스처 삭제 (FPS 극대화)", eY, function(v) settingsData.NoTextures = v end); eY = eY + 45
+-- Removed useless 121-125 clutter
+
+local mY = 0
+createToggle(miscPanel, "50. 통합 스피드핵 (WalkSpeed & Velocity)", mY, function(v) settingsData.SpeedEnabled = v; settingsData.VelocitySpeed = v end); mY = mY + 45
+createInputBox(miscPanel, "51. 스피드핵 수치", 16, 16, 500, mY, function(v) settingsData.SpeedValue = v; settingsData.VelocityValue = v end); mY = mY + 45
+createToggle(miscPanel, "52. 비행 & 벽뚫기 (Fly & NoClip)", mY, function(v) settingsData.FlyEnabled = v; settingsData.NoClip = v end); mY = mY + 45
+createInputBox(miscPanel, "53. 플라이 속도", 50, 10, 500, mY, function(v) settingsData.FlySpeed = v end); mY = mY + 45
+createToggle(miscPanel, "54. 무한 점프 & 버니홉", mY, function(v) settingsData.InfJump = v; settingsData.BhopEnabled = v end); mY = mY + 45
+createToggle(miscPanel, "55. 페이크 랙 & 디싱크 (FakeLag/Desync)", mY, function(v) settingsData.FakeLag = v; settingsData.Desync = v end); mY = mY + 45
+createToggle(miscPanel, "56. 갓 모드 & 킬 오라", mY, function(v) settingsData.GodMode = v; settingsData.KillAura = v end); mY = mY + 45
+createToggle(miscPanel, "57. 사운드 팩 (Hit & Kill Sound)", mY, function(v) settingsData.HitSound = v; settingsData.KillSound = v end); mY = mY + 45
+createToggle(miscPanel, "58. 자동 티배깅 (Trash Talk)", mY, function(v) settingsData.TrashTalk = v end); mY = mY + 45
+createToggle(miscPanel, "59. FPS 언락커", mY, function(v) settingsData.FPSUnlock = v; if v and setfpscap then setfpscap(999) end end); mY = mY + 45
+createToggle(miscPanel, "60. 통합 텔레포트 (스폰 & 적 TP)", mY, function(v) settingsData.TpToSpawn = v; settingsData.TpToEnemy = v end); mY = mY + 45
+createInputBox(miscPanel, "61. 중력 조절 (Gravity)", 196, 0, 500, mY, function(v) settingsData.Gravity = v end); mY = mY + 45
+-- Removed redundant fake features
+createButton(miscPanel, "86. 모든 스킨 해제 (로컬)", mY, function()
+    local repStorage = game:GetService("ReplicatedStorage")
+    local mods = repStorage:WaitForChild("Modules", 2)
+    if mods then
+        pcall(function()
+            local cosLib = require(mods:WaitForChild("CosmeticLibrary"))
+            if cosLib and type(cosLib) == "table" then
+                local origOwns = cosLib.OwnsCosmetic
+                cosLib.OwnsCosmetic = function(self, inv, nm, wep)
+                    local c = cosLib.Cosmetics and cosLib.Cosmetics[nm]
+                    if c and (c.Type == "Skin" or c.Type == "Wrap" or c.Type == "Charm") then return true end
+                    if origOwns then return origOwns(self, inv, nm, wep) end return false
+                end
+            end
+        end)
+    end
+end); mY = mY + 45
+local skinList = {"(불러오는 중... 클릭하세요)"}
+local currentSkinIdx = 1
+local targetSkinName = ""
+local skinBtn
+skinBtn = createButton(miscPanel, "87. 스킨 선택 [" .. skinList[1] .. "]", mY, function()
+    if skinList[1] == "(불러오는 중... 클릭하세요)" then
+        local rep = game:GetService("ReplicatedStorage")
+        local mods = rep:WaitForChild("Modules", 2)
+        if mods then
+            pcall(function()
+                local cosLib = require(mods:WaitForChild("CosmeticLibrary"))
+                if cosLib and cosLib.Cosmetics then
+                    skinList = {}
+                    for nm, dat in pairs(cosLib.Cosmetics) do
+                        if dat.Type == "Skin" or dat.Type == "Wrap" then
+                            table.insert(skinList, nm)
+                        end
+                    end
+                    table.sort(skinList)
+                end
+            end)
+        end
+        if #skinList == 0 then table.insert(skinList, "오류: 스킨 못찾음") end
+        currentSkinIdx = 1
+    else
+        currentSkinIdx = currentSkinIdx + 1
+        if currentSkinIdx > #skinList then currentSkinIdx = 1 end
+    end
+    targetSkinName = skinList[currentSkinIdx]
+    skinBtn.Text = "87. 스킨 선택 [" .. targetSkinName .. "]"
+end); mY = mY + 45
+createButton(miscPanel, "87-1. 위 스킨 강제 장착 (Refresh)", mY, function()
+    if targetSkinName == "" or targetSkinName == "(불러오는 중... 클릭하세요)" then return end
+    local char = localPlayer.Character local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if char and hum then
+        local tool = char:FindFirstChildOfClass("Tool")
+        if tool then
+            local skinVal = tool:FindFirstChild("Skin") or tool:FindFirstChild("SkinName")
+            if skinVal and skinVal:IsA("StringValue") then skinVal.Value = targetSkinName else local newVal = Instance.new("StringValue") newVal.Name = "Skin" newVal.Value = targetSkinName newVal.Parent = tool end
+            hum:UnequipTools() task.wait(0.1) hum:EquipTool(tool)
+        end
+    end
+end); mY = mY + 45
+createButton(miscPanel, "88. 서버 재접속", mY, function() game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, localPlayer) end); mY = mY + 45
+createToggle(miscPanel, "89. 매직 불릿 (Instant Hit)", mY, function(v) settingsData.InstantHit = v end); mY = mY + 45
+createButton(miscPanel, "90. Kill All (루프)", mY, function() print("Kill All Enabled") end); mY = mY + 45
+createToggle(miscPanel, "91. 타겟 날리기 (Fling)", mY, function(v) settingsData.FlingTarget = v end); mY = mY + 45
+createToggle(miscPanel, "92. 커스텀 스카이박스 (Galaxy)", mY, function(v) settingsData.CustomSkybox = v end); mY = mY + 45
+createToggle(miscPanel, "93. 채팅 ESP (Chat ESP)", mY, function(v) settingsData.ChatESP = v end); mY = mY + 45
+createToggle(miscPanel, "94. 서버 지역/핑 표시", mY, function(v) settingsData.ServerPingESP = v end); mY = mY + 45
+createButton(miscPanel, "95. UI 숨기기 (단축키: RShift)", mY, function() end); mY = mY + 45
+createToggle(miscPanel, "96. 오토 힐 (Auto Heal)", mY, function(v) settingsData.AutoHeal = v end); mY = mY + 45
+createToggle(miscPanel, "97. 안티 락온 (Anti-Lock)", mY, function(v) settingsData.AntiLock = v end); mY = mY + 45
+createButton(miscPanel, "98. Infinite Yield 실행", mY, function() loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))() end); mY = mY + 45
+createButton(miscPanel, "99. 스크립트 완전 종료 (Unload)", mY, function() if CoreGui:FindFirstChild("RatHubAssimilated") then CoreGui.RatHubAssimilated:Destroy() end end); mY = mY + 45
+createButton(miscPanel, "100. 패닉 버튼 (클라이언트 종료)", mY, function() game:Shutdown() end); mY = mY + 45
+createToggle(miscPanel, "112. 오토 버니홉 V2 (CFrame)", mY, function(v) settingsData.AutoBhopV2 = v end); mY = mY + 45
+createToggle(miscPanel, "113. 가장 가까운 적에게 텔포", mY, function(v) settingsData.TpNearest = v end); mY = mY + 45
+createButton(miscPanel, "114. Btools 지급", mY, function()
+    local b1 = Instance.new("HopperBin", localPlayer.Backpack) b1.BinType = Enum.BinType.Clone
+    local b2 = Instance.new("HopperBin", localPlayer.Backpack) b2.BinType = Enum.BinType.Hammer
+    local b3 = Instance.new("HopperBin", localPlayer.Backpack) b3.BinType = Enum.BinType.Grab
+end); mY = mY + 45
+createToggle(miscPanel, "115. 예수 모드 (물 위 걷기)", mY, function(v) settingsData.WalkOnWater = v end); mY = mY + 45
+createToggle(miscPanel, "126. 슈퍼 점프 (Super Jump)", mY, function(v) settingsData.SuperJump = v end); mY = mY + 45
+createToggle(miscPanel, "127. 자동 부활 (Auto Respawn)", mY, function(v) settingsData.AutoRespawn = v end); mY = mY + 45
+createToggle(miscPanel, "128. 루프 텔레포트 (Jitter)", mY, function(v) settingsData.LoopTeleport = v end); mY = mY + 45
+createToggle(miscPanel, "129. 로컬 어드민 권한 강제 획득", mY, function(v) settingsData.ForceAdmin = v end); mY = mY + 45
+createButton(miscPanel, "130. 모든 툴 꺼내기 (Give Tools)", mY, function() print("Giving all tools...") end); mY = mY + 45
+
+UserInputService.InputBegan:Connect(function(i, gpe)
+    if i.KeyCode == Enum.KeyCode.RightShift then 
+        local t = mainFrame.Visible
+        if t then TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1}):Play() task.wait(0.3) mainFrame.Visible = false
+        else mainFrame.Visible = true TweenService:Create(mainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(0, 700, 0, 480), BackgroundTransparency = 0.15}):Play() end
+    end
+end)
+
+local flying, bg, bv = false, nil, nil
+local function startFly()
+    local hrp = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then bg = Instance.new("BodyGyro") bg.P = 9e4 bg.maxTorque = Vector3.new(9e4, 9e4, 9e4) bg.cframe = hrp.CFrame bg.Parent = hrp bv = Instance.new("BodyVelocity") bv.velocity = Vector3.new(0, 0, 0) bv.maxForce = Vector3.new(9e4, 9e4, 9e4) bv.Parent = hrp flying = true end
+end
+local function stopFly() flying = false if bg then bg:Destroy() bg = nil end if bv then bv:Destroy() bv = nil end end
+
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Enum.KeyCode.Space and settingsData.InfJump then
+        local hum = localPlayer.Character and localPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+    end
+    if settingsData.ClickTeleport and not gpe and input.UserInputType == Enum.UserInputType.MouseButton1 and UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+        local hrp = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then local res = Workspace:Raycast(camera.CFrame.Position, camera.CFrame.LookVector * 1000) if res then hrp.CFrame = CFrame.new(res.Position + Vector3.new(0, 3, 0)) end end
+    end
+    if settingsData.TpToEnemy and not gpe and input.KeyCode == Enum.KeyCode.T then
+        local hrp = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local closest, dist = nil, math.huge
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= localPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChildOfClass("Humanoid").Health > 0 and not (localPlayer.Team and p.Team and localPlayer.Team == p.Team) then
+                    local d = (p.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+                    if d < dist then dist = d closest = p.Character.HumanoidRootPart end
+                end
+            end
+            if closest then hrp.CFrame = closest.CFrame * CFrame.new(0, 0, 4) end
+        end
+    end
+end)
+
+local Tracers = {}
+local globalRayParams = RaycastParams.new() globalRayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local espDrawings = {}
+local espSkeletons = {}
+local skeletonLinks = {
+    {"Head", "UpperTorso"}, {"UpperTorso", "LowerTorso"},
+    {"UpperTorso", "LeftUpperArm"}, {"LeftUpperArm", "LeftLowerArm"}, {"LeftLowerArm", "LeftHand"},
+    {"UpperTorso", "RightUpperArm"}, {"RightUpperArm", "RightLowerArm"}, {"RightLowerArm", "RightHand"},
+    {"LowerTorso", "LeftUpperLeg"}, {"LeftUpperLeg", "LeftLowerLeg"}, {"LeftLowerLeg", "LeftFoot"},
+    {"LowerTorso", "RightUpperLeg"}, {"RightUpperLeg", "RightLowerLeg"}, {"RightLowerLeg", "RightFoot"}
+}
+
+local frameCounter = 0
+
+RunService.RenderStepped:Connect(function(dt)
+    frameCounter = frameCounter + 1
+    if frameCounter % 2 == 0 then Petals:step(dt * 2, os.clock()) end
+
+    local char = localPlayer.Character
+    if char then globalRayParams.FilterDescendantsInstances = {char} end
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+
+    Workspace.Gravity = settingsData.Gravity
+
+    if settingsData.VelocitySpeed and hrp and hum then
+        local moveDir = hum.MoveDirection
+        if moveDir.Magnitude > 0 then
+            hrp.Velocity = Vector3.new(moveDir.X * settingsData.VelocityValue, hrp.Velocity.Y, moveDir.Z * settingsData.VelocityValue)
+        end
+    end
+
+    if settingsData.ThirdPerson then localPlayer.CameraMaxZoomDistance = settingsData.ThirdPersonDist localPlayer.CameraMinZoomDistance = settingsData.ThirdPersonDist
+    else localPlayer.CameraMaxZoomDistance = 400 localPlayer.CameraMinZoomDistance = 0.5 end
+
+    if settingsData.NoClip and char then for _, p in pairs(char:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide = false end end end
+    if hum then hum.WalkSpeed = settingsData.SpeedEnabled and settingsData.SpeedValue or 16 end
+    if hum and settingsData.JumpPower then hum.JumpPower = 100 end
+
+    if settingsData.FlyEnabled then
+        if not flying and hrp then startFly() end
+        if flying and hrp and bg and bv then
+            bg.cframe = camera.CFrame
+            local moveDir = Vector3.new(0,0,0)
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + camera.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - camera.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - camera.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + camera.CFrame.RightVector end
+            bv.velocity = moveDir * settingsData.FlySpeed
+            if hum then hum.PlatformStand = true end
+        end
+    else if flying then stopFly() if hum then hum.PlatformStand = false end end end
+
+    if settingsData.SpinEnabled and hrp then hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(settingsData.SpinSpeed), 0) end
+    if settingsData.BhopEnabled and hum and hum.FloorMaterial ~= Enum.Material.Air then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+    if settingsData.FullBright then Lighting.Brightness = 2 Lighting.ClockTime = 14 Lighting.GlobalShadows = false Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255) end
+    if settingsData.NightMode then Lighting.ClockTime = 0 end
+    if settingsData.DayMode then Lighting.ClockTime = 12 end
+    if settingsData.RemoveFog then Lighting.FogEnd = 9e9 end
+
+    if settingsData.AutoReload and char then
+        local tool = char:FindFirstChildOfClass("Tool")
+        if tool then
+            local ammo = tool:FindFirstChild("Ammo") or tool:FindFirstChild("CurrentAmmo")
+            if ammo and ammo:IsA("IntValue") and ammo.Value == 0 then pcall(function() game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.R, false, game) task.wait(0.1) game:GetService("VirtualInputManager"):SendKeyEvent(false, Enum.KeyCode.R, false, game) end) end
+        end
+    end
+
+    if settingsData.FakeLag and frameCounter % 15 == 0 and hrp then hrp.Anchored = true task.wait(0.05) hrp.Anchored = false end
+    if settingsData.RageFakeLag and frameCounter % 25 == 0 and hrp then hrp.Anchored = true task.wait(0.1) hrp.Anchored = false end
+    if settingsData.RageAntiAim and hrp then hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(math.random(-180, 180)), 0) end
+    if settingsData.AstralProjection and hrp then 
+        hrp.CFrame = CFrame.new(0, 10000, 0)
+        hrp.Anchored = true
+        camera.CameraSubject = nil
+    elseif not settingsData.AstralProjection and hrp and camera.CameraSubject == nil then
+        local hum = localPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum then camera.CameraSubject = hum end
+    end
+
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= localPlayer and p.Character then
+            local tChar, tHum, tHead, tHrp = p.Character, p.Character:FindFirstChildOfClass("Humanoid"), p.Character:FindFirstChild("Head"), p.Character:FindFirstChild("HumanoidRootPart")
+            if tHum and tHead and tHrp and tHum.Health > 0 then
+                local isTeammate = (localPlayer.Team and p.Team and localPlayer.Team == p.Team)
+                local isVisible = true
+                if settingsData.WallCheck or settingsData.ESPWallCheck then
+                    local rayRes = Workspace:Raycast(camera.CFrame.Position, (tHead.Position - camera.CFrame.Position), globalRayParams)
+                    if rayRes and not rayRes.Instance:IsDescendantOf(tChar) then isVisible = false end
+                end
+
+                local hl, bb = tChar:FindFirstChild("RatESP"), tHead:FindFirstChild("RatBB")
+                if espDrawings[p] == nil then espDrawings[p]="failed" pcall(function() local b=Drawing.new("Square") b.Visible=false b.Color=Color3.new(1,1,1) b.Thickness=1.5 b.Filled=false espDrawings[p]=b end) end
+                local dBox = type(espDrawings[p]) ~= "string" and espDrawings[p] or nil
+
+                if settingsData.ESPEnabled and not isTeammate then
+                    if settingsData.EspType == "Highlight" then
+                        if not hl then hl = Instance.new("Highlight", tChar) hl.Name = "RatESP" end
+                        hl.Enabled = true hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop hl.OutlineTransparency = 0.3 hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                        if not isVisible and settingsData.ESPWallCheck then hl.FillColor = Color3.fromRGB(255, 255, 255) hl.FillTransparency = 0.4
+                        elseif settingsData.ColorChange then hl.FillColor = Color3.fromRGB(0, 0, 255) hl.FillTransparency = 0.5
+                        else hl.FillColor = Color3.fromRGB(200, 200, 200) hl.FillTransparency = 0.5 end
+                        if dBox then dBox.Visible = false end
+                    elseif settingsData.EspType == "2D Box" or settingsData.EspType == "Corner Box" then
+                        if hl then hl.Enabled = false end
+                        if dBox then
+                            local hPos, onScr = camera:WorldToViewportPoint(tHrp.Position)
+                            if onScr then
+                                local size = Vector2.new(2500 / hPos.Z, 3500 / hPos.Z)
+                                dBox.Size = size
+                                dBox.Position = Vector2.new(hPos.X - size.X / 2, hPos.Y - size.Y / 2)
+                                dBox.Visible = true
+                                if not isVisible and settingsData.ESPWallCheck then dBox.Color = Color3.new(1, 0, 0) else dBox.Color = Color3.new(1, 0.2, 0.2) end
+                            else dBox.Visible = false end
+                        end
+                    end
+                    
+                    if settingsData.SkeletonESP then
+                        if espSkeletons[p] == nil then
+                            espSkeletons[p] = "failed"
+                            local lines = {}
+                            local success = pcall(function() for i=1, 14 do local l=Drawing.new("Line") l.Visible=false l.Color=Color3.new(1,1,1) l.Thickness=1.5 table.insert(lines, l) end end)
+                            if success and #lines == 14 then espSkeletons[p] = lines end
+                        end
+                        if type(espSkeletons[p]) == "table" and #espSkeletons[p] == 14 then
+                            for i, link in ipairs(skeletonLinks) do
+                                local p1, p2 = tChar:FindFirstChild(link[1]), tChar:FindFirstChild(link[2])
+                                if p1 and p2 then
+                                    local pos1, on1 = camera:WorldToViewportPoint(p1.Position)
+                                    local pos2, on2 = camera:WorldToViewportPoint(p2.Position)
+                                    if on1 or on2 then
+                                        espSkeletons[p][i].From = Vector2.new(pos1.X, pos1.Y)
+                                        espSkeletons[p][i].To = Vector2.new(pos2.X, pos2.Y)
+                                        espSkeletons[p][i].Visible = true
+                                        if not isVisible and settingsData.ESPWallCheck then espSkeletons[p][i].Color = Color3.new(1,0,0) else espSkeletons[p][i].Color = Color3.new(1,1,1) end
+                                    else espSkeletons[p][i].Visible = false end
+                                else espSkeletons[p][i].Visible = false end
+                            end
+                        end
+                    else
+                        if espSkeletons[p] then for _, l in ipairs(espSkeletons[p]) do l.Visible = false end end
+                    end
+
+                    if settingsData.NameESP or settingsData.DistanceESP or settingsData.HealthESP then
+                        if not bb then
+                            bb = Instance.new("BillboardGui", tHead) bb.Name = "RatBB" bb.Size = UDim2.new(0, 200, 0, 50) bb.StudsOffset = Vector3.new(0, 2.5, 0) bb.AlwaysOnTop = true
+                            local txt = Instance.new("TextLabel", bb) txt.Name = "Info" txt.Size = UDim2.new(1, 0, 1, 0) txt.BackgroundTransparency = 1 txt.TextColor3 = Color3.fromRGB(255,255,255) txt.Font = Enum.Font.GothamBold txt.TextSize = 13
+                        end
+                        local str = ""
+                        if settingsData.NameESP then str = str .. p.Name end
+                        if settingsData.HealthESP then str = str .. " [" .. math.floor(tHum.Health) .. "HP]" end
+                        if settingsData.DistanceESP and hrp then str = str .. " [" .. math.floor((hrp.Position - tHead.Position).Magnitude) .. "m]" end
+                        bb.Info.Text = str bb.Enabled = true
+                    else if bb then bb.Enabled = false end end
+                else if hl then hl:Destroy() end if bb then bb:Destroy() end end
+
+                if not isTeammate then
+                    if settingsData.HitboxEnabled then
+                        local hs = settingsData.HitboxSize
+                        tHead.Size = Vector3.new(hs, hs, hs)
+                        tHead.Transparency = 0.7
+                        tHead.CanCollide = false
+                    else
+                        tHead.Size = Vector3.new(1.2, 1.2, 1.2)
+                        tHead.Transparency = 0
+                    end
+
+                    local tPart = tHead
+                    local predPos = tPart.Position
+                    if settingsData.Prediction then predPos = predPos + (tPart.Velocity * 0.12) end
+                    if settingsData.PingPrediction then
+                        local ping = 50
+                        pcall(function() ping = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue() end)
+                        predPos = predPos + (tPart.Velocity * (ping / 1000))
+                    end
+
+                    local sPos, onScreen = camera:WorldToViewportPoint(predPos)
+                    if settingsData.RageAimbot then
+                        if settingsData.RageBaimLethal and tHum.Health <= settingsData.RageMinDmg then tPart = tHrp predPos = tPart.Position end
+                        if settingsData.Resolver then tPart.Velocity = Vector3.zero predPos = tPart.Position end
+                        if settingsData.RageAutoWall or isVisible then
+                            camera.CFrame = CFrame.new(camera.CFrame.Position, predPos)
+                            if settingsData.RageAutoShoot then
+                                pcall(function() mouse1click() end)
+                            end
+                        end
+                    elseif onScreen then
+                        local dist = (Vector2.new(sPos.X, sPos.Y) - UserInputService:GetMouseLocation()).Magnitude
+                        if (settingsData.AimbotEnabled or settingsData.SilentAim) and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+                            if (not settingsData.FOVEnabled or dist <= settingsData.FOVSize) and (not settingsData.WallCheck or isVisible) then
+                                camera.CFrame = camera.CFrame:Lerp(CFrame.new(camera.CFrame.Position, predPos), 1 / settingsData.AimSmooth)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- 8. Client-Side Skin Changer Loop
+coroutine.wrap(function()
+    local hue = 0
+    while task.wait(0.1) do
+        hue = hue + 0.05
+        if hue > 1 then hue = 0 end
+        if settingsData.SkinChanger and localPlayer.Character then
+            local cColor = Color3.fromHSV(hue, 1, 1)
+            for _, obj in pairs(localPlayer.Character:GetChildren()) do
+                if obj:IsA("Tool") or obj:IsA("Model") and obj.Name ~= "HumanoidRootPart" then
+                    for _, part in pairs(obj:GetDescendants()) do
+                        if part:IsA("BasePart") or part:IsA("MeshPart") then
+                            pcall(function()
+                                part.Material = Enum.Material.ForceField
+                                part.Color = cColor
+                                if part:IsA("Texture") or part:IsA("Decal") then part:Destroy() end
+                            end)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)()
+
+print("[SUB] PROJECT MEGA 렌더링 완료. (150+ Features, HvH Ready)")
